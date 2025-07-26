@@ -1,4 +1,4 @@
-name: release Windows
+name: release Windows-x86
 
 on:
   workflow_dispatch:
@@ -11,11 +11,9 @@ on:
       - master
 
 env:
-  OutputArch: "windows-86"
-  OutputArchArm: "windows-arm86"
-  OutputPath64:  "${{ github.workspace }}/v2rayN/Release/windows-86"
-  OutputPathArm64:  "${{ github.workspace }}/v2rayN/Release/windows-arm86"
-  OutputPath64Sc:  "${{ github.workspace }}/v2rayN/Release/windows-86-SelfContained"
+  OutputArch: "windows-x86"  # 改为x86明确表示32位
+  OutputPath: "${{ github.workspace }}/v2rayN/Release/windows-x86"
+  OutputPathSc: "${{ github.workspace }}/v2rayN/Release/windows-x86-SelfContained"
 
 jobs:
   build:
@@ -23,45 +21,44 @@ jobs:
       matrix:
         configuration: [Release]
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest  # 建议使用Windows构建Windows应用
 
     steps:
-    - name: Checkout
+    - name: 检出代码
       uses: actions/checkout@v4.2.2
 
-    - name: Setup
+    - name: 安装.NET
       uses: actions/setup-dotnet@v4.3.1
       with:
         dotnet-version: '8.0.x'
 
-    - name: Build
+    - name: 构建32位版本
       run: |
         cd v2rayN 
-        dotnet publish ./v2rayN/v2rayN.csproj     -c Release -r win-x86   --self-contained=false -p:EnableWindowsTargeting=true -o $OutputPath86
-        dotnet publish ./v2rayN/v2rayN.csproj     -c Release -r win-arm86 --self-contained=false -p:EnableWindowsTargeting=true -o $OutputPathArm86
-        dotnet publish ./v2rayN/v2rayN.csproj     -c Release -r win-x86   --self-contained=true  -p:EnableWindowsTargeting=true -o $OutputPath86Sc
-        dotnet publish ./AmazTool/AmazTool.csproj -c Release -r win-x86   --self-contained=false -p:EnableWindowsTargeting=true -o $OutputPath86
-        dotnet publish ./AmazTool/AmazTool.csproj -c Release -r win-arm86 --self-contained=false -p:EnableWindowsTargeting=true -o $OutputPathArm86
-        dotnet publish ./AmazTool/AmazTool.csproj -c Release -r win-x86   --self-contained=true  -p:EnableWindowsTargeting=true -p:PublishTrimmed=true -o $OutputPath86Sc
+        # 构建普通版本
+        dotnet publish ./v2rayN/v2rayN.csproj -c Release -r win-x86 --self-contained=false -p:EnableWindowsTargeting=true -o $env:OutputPath
+        # 构建自包含版本
+        dotnet publish ./v2rayN/v2rayN.csproj -c Release -r win-x86 --self-contained=true -p:EnableWindowsTargeting=true -o $env:OutputPathSc
+        # 构建工具
+        dotnet publish ./AmazTool/AmazTool.csproj -c Release -r win-x86 --self-contained=false -p:EnableWindowsTargeting=true -o $env:OutputPath
+        dotnet publish ./AmazTool/AmazTool.csproj -c Release -r win-x86 --self-contained=true -p:EnableWindowsTargeting=true -p:PublishTrimmed=true -o $env:OutputPathSc
 
-  
-    - name: Upload build artifacts
+    - name: 上传构建产物
       uses: actions/upload-artifact@v4.6.2
       with:
-        name: v2rayN-windows
+        name: v2rayN-windows-x86
         path: |
-          ${{ github.workspace }}/v2rayN/Release/windows*
+          ${{ github.workspace }}/v2rayN/Release/windows-x86*
     
-    # release zip archive
-    - name: Package release zip archive
+    - name: 打包发布ZIP
       if: github.event.inputs.release_tag != ''
       run: |
+        # 确保有打包脚本
         chmod 755 package-release-zip.sh
-        ./package-release-zip.sh $OutputArch $OutputPath86
-        ./package-release-zip.sh $OutputArchArm $OutputPathArm86
-        ./package-release-zip.sh "windows-64-SelfContained" $OutputPath86Sc
+        ./package-release-zip.sh $env:OutputArch $env:OutputPath
+        ./package-release-zip.sh "windows-x86-SelfContained" $env:OutputPathSc
     
-    - name: Upload zip archive to release
+    - name: 上传发布包
       uses: svenstaro/upload-release-action@v2
       if: github.event.inputs.release_tag != ''
       with:
